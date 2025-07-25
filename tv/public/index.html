@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZLRemote TV</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+        
+        .tv-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .tv-header {
+            height: 80px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+        
+        .tv-logo {
+            font-size: 32px;
+            font-weight: 300;
+        }
+        
+        .tv-status {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .tv-main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .tv-screen {
+            width: 90%;
+            height: 85%;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        
+        .remote-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .tv-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            text-align: center;
+        }
+        
+        .tv-qr {
+            width: 200px;
+            height: 200px;
+            background: white;
+            margin: 20px 0;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        
+        .tv-instructions {
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        
+        .tv-instructions h2 {
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        
+        .tv-instructions p {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .session-display {
+            font-size: 48px;
+            font-weight: bold;
+            letter-spacing: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        
+        .remote-cursor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff4757;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="tv-container">
+        <div class="tv-header">
+            <div class="tv-logo">ZL<span style="font-weight: 700;">Remote</span> TV</div>
+            <div class="tv-status">
+                <span id="tvFps">0 FPS</span>
+                <span id="tvLatency">0ms</span>
+                <span id="tvConnections">0 Connections</span>
+            </div>
+        </div>
+        
+        <div class="tv-main">
+            <div class="tv-screen" id="tvScreen">
+                <video id="remoteVideo" class="remote-video" autoplay muted></video>
+                <div class="remote-cursor" id="remoteCursor" style="display: none;"></div>
+                
+                <div class="tv-overlay" id="tvOverlay">
+                    <div class="tv-instructions">
+                        <h2>Connect to your TV</h2>
+                        <div class="tv-qr" id="qrCode">QR Code</div>
+                        <div class="session-display" id="sessionDisplay">-----</div>
+                        <p>1. Download ZLRemote on your phone or computer</p>
+                        <p>2. Enter the session ID above or scan the QR code</p>
+                        <p>3. Start controlling your TV remotely</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="tv-app.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Build stage
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+# Copiar dependencias
+COPY web/package*.json ./
+RUN npm ci
+
+# Copiar código y shared
+COPY web/src ./src
+COPY web/public ./public
+COPY shared ../shared
+
+# Build
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+
+# Copiar build
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Configuración nginx personalizada
+COPY deploy/nginx-web.conf /etc/nginx/conf.d/default.conf
+
+# Exponer puerto
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

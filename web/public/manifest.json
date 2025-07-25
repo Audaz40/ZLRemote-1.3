@@ -1,0 +1,51 @@
+{
+    "short_name": "ZLRemote",
+    "name": "ZLRemote - Professional Remote Desktop",
+    "description": "Zero-latency remote desktop application with advanced features",
+    "icons": [
+      {
+        "src": "favicon.ico",
+        "sizes": "64x64 32x32 24x24 16x16",
+        "type": "image/x-icon"
+      },
+      {
+        "src": "logo192.png",
+        "type": "image/png",
+        "sizes": "192x192"
+      },
+      {
+        "src": "logo512.png",
+        "type": "image/png",
+        "sizes": "512x512"
+      }
+    ],
+    "start_url": ".",
+    "display": "standalone",
+    "theme_color": "#667eea",
+    "background_color": "#ffffff",
+    "orientation": "landscape",
+    "categories": ["productivity", "utilities"],
+    "screenshots": [
+      {
+        "src": "screenshot1.png",
+        "sizes": "1280x720",
+        "type": "image/png"
+      }
+    ],
+    "shortcuts": [
+      {
+        "name": "Quick Connect",
+        "short_name": "Connect",
+        "description": "Quickly connect to a remote session",
+        "url": "/connect",
+        "icons": [{ "src": "connect-icon.png", "sizes": "96x96" }]
+      },
+      {
+        "name": "Host Session",
+        "short_name": "Host",
+        "description": "Start hosting a new session",
+        "url": "/host",
+        "icons": [{ "src": "host-icon.png", "sizes": "96x96" }]
+      }
+    ]
+  }

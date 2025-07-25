@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  zlremote-server:
+    build:
+      context: ../
+      dockerfile: deploy/Dockerfile.production
+    ports:
+      - "443:443"
+      - "80:80"
+      - "3478:3478/udp"  # STUN
+      - "5349:5349/tcp"  # TURNS
+    environment:
+      - NODE_ENV=production
+      - SSL_KEY_PATH=/app/ssl/private.key
+      - SSL_CERT_PATH=/app/ssl/certificate.crt
+      - SSL_CA_PATH=/app/ssl/ca.crt
+      - TURN_PASSWORD=${TURN_PASSWORD}
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ../ssl:/app/ssl:ro
+      - ../logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - zlremote-production
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+
+  coturn:
+    image: coturn/coturn:latest
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/tcp"
+      - "49152-65535:49152-65535/udp"
+    environment:
+      - TURN_USERNAME=zlremote
+      - TURN_PASSWORD=${TURN_PASSWORD}
+      - REALM=${DOMAIN}
+    volumes:
+      - ./coturn.conf:/etc/coturn/turnserver.conf:ro
+      - ../ssl:/etc/ssl/coturn:ro
+    restart: unless-stopped
+    networks:
+      - zlremote-production
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-production.conf:/etc/nginx/nginx.conf:ro
+      - ../ssl:/etc/nginx/ssl:ro
+      - ../web/build:/usr/share/nginx/html:ro
+    depends_on:
+      - zlremote-server
+    restart: unless-stopped
+    networks:
+      - zlremote-production
+
+networks:
+  zlremote-production:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  zlremote-server:
+    build:
+      context: ../
+      dockerfile: deploy/Dockerfile.server
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - TURN_SERVER_URL=turn:your-turn-server.com:3478
+      - TURN_USERNAME=zlremote
+      - TURN_PASSWORD=${TURN_PASSWORD}
+    volumes:
+      - /var/log/zlremote:/app/logs
+    restart: unless-stopped
+    networks:
+      - zlremote-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../web/build:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - zlremote-server
+    restart: unless-stopped
+    networks:
+      - zlremote-network
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - zlremote-network
+
+networks:
+  zlremote-network:
+    driver: bridge
+
+volumes:
+  redis-data:

@@ -1,0 +1,28 @@
+FROM node:18-alpine
+
+# Instalar FFmpeg para grabaciones
+RUN apk add --no-cache ffmpeg
+
+WORKDIR /app
+
+# Copiar package.json y instalar dependencias
+COPY server/package*.json ./
+RUN npm ci --only=production
+
+# Copiar código fuente
+COPY server/src ./src
+COPY shared ./shared
+
+# Crear directorios necesarios
+RUN mkdir -p recordings logs uploads
+
+# Exponer puertos
+EXPOSE 3001 3002
+
+# Variables de entorno por defecto
+ENV NODE_ENV=production
+ENV PORT=3001
+ENV API_PORT=3002
+
+# Comando de inicio
+CMD ["npm", "start"]

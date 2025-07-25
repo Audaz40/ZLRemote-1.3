@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" 
+        xmlns:tizen="http://tizen.org/ns/widgets" 
+        id="com.zlremote.tizen" 
+        version="1.0.0">
+    
+    <tizen:application id="zlremote.main" package="zlremote" required_version="6.0"/>
+    
+    <content src="index.html"/>
+    
+    <name>ZLRemote</name>
+    <description>Professional Zero-Latency Remote Desktop for Smart TV</description>
+    <author href="https://zlremote.com" email="support@zlremote.com">ZLRemote Team</author>
+    
+    <icon src="icon.png"/>
+    
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.display"/>
+    <tizen:privilege name="http://tizen.org/privilege/filesystem.read"/>
+    <tizen:privilege name="http://tizen.org/privilege/filesystem.write"/>
+    
+    <tizen:profile name="tv-samsung"/>
+    
+    <tizen:setting screen-orientation="landscape" 
+                   context-menu="disable" 
+                   background-support="disable" 
+                   encryption="disable" 
+                   install-location="auto"/>
+    
+    <access origin="*" subdomains="true"/>
+</widget>

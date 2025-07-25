@@ -1,0 +1,41 @@
+{
+    "id": "com.zlremote.webos",
+    "version": "1.0.0",
+    "vendor": "ZLRemote Team",
+    "type": "web",
+    "main": "index.html",
+    "title": "ZLRemote",
+    "subtitle": "Professional Remote Desktop",
+    "description": "Zero-latency remote desktop application for LG Smart TV",
+    "icon": "icon.png",
+    "largeIcon": "largeIcon.png",
+    "splashBackground": "splash.png",
+    "transparent": false,
+    "resolution": "1920x1080",
+    "disableBackHistoryAPI": true,
+    "bgImage": "bg.png",
+    "category": ["Productivity"],
+    "keywords": ["remote", "desktop", "screen", "sharing"],
+    "requiredPermissions": [
+      "internet",
+      "tv.operation",
+      "tv.display",
+      "media.operation"
+    ],
+    "optionalPermissions": [
+      "bluetooth.operation",
+      "network.operation"
+    ],
+    "supportedLanguages": [
+      "en-US",
+      "es-ES",
+      "fr-FR",
+      "de-DE",
+      "it-IT",
+      "pt-BR",
+      "ja-JP",
+      "ko-KR",
+      "zh-CN"
+    ],
+    "defaultLanguage": "en-US"
+  }
