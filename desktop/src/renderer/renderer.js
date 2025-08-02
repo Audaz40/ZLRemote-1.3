@@ -8,11 +8,16 @@ class ZLRemoteDesktop {
         this.isHost = false;
         this.sessionId = null;
         this.viewers = new Map();
+        this.iceCandidateQueues = new Map();
         this.isPaused = false;
         this.audioEnabled = true;
         this.frameCount = 0;
         this.lastFPSUpdate = Date.now();
+        this.fpsInterval = null;
         
+        // Cola para mensajes enviados antes de que el WebSocket esté listo
+        this.messageQueue = []; 
+
         this.screens = {
             welcome: document.getElementById('welcomeScreen'),
             host: document.getElementById('hostScreen'),
@@ -26,6 +31,7 @@ class ZLRemoteDesktop {
         this.setupEventListeners();
         this.connectToServer();
         this.setupWindowControls();
+        this.setupChat();
         this.showScreen('welcome');
     }
 
@@ -127,8 +133,17 @@ class ZLRemoteDesktop {
         fab.style.display = screenName === 'host' ? 'flex' : 'none';
     }
 
+    sendMessage(message) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(message));
+        } else {
+            console.log('WebSocket not ready, queuing message:', message.type);
+            this.messageQueue.push(message);
+        }
+    }
+
     connectToServer() {
-        const wsUrl = process.env.WS_URL || 'ws://localhost:3001';
+        const wsUrl = 'wss://zlremote-server.duckdns.org';
         console.log('Connecting to:', wsUrl);
         
         this.ws = new WebSocket(wsUrl);
@@ -137,6 +152,13 @@ class ZLRemoteDesktop {
             console.log('Connected to server');
             this.updateConnectionStatus(true);
             this.showToast('Connected to server', 'success');
+
+            // Procesa la cola de mensajes al conectar
+            while (this.messageQueue.length > 0) {
+                const message = this.messageQueue.shift();
+                console.log('Sending queued message:', message.type);
+                this.ws.send(JSON.stringify(message));
+            }
         };
 
         this.ws.onmessage = async (event) => {
@@ -148,7 +170,7 @@ class ZLRemoteDesktop {
             console.log('Disconnected from server');
             this.updateConnectionStatus(false);
             this.showToast('Disconnected from server', 'error');
-            setTimeout(() => this.connectToServer(), 3000);
+            setTimeout(() => this.connectToServer(), 5000); // Wait 5 seconds before reconnecting
         };
 
         this.ws.onerror = (error) => {
@@ -174,22 +196,15 @@ class ZLRemoteDesktop {
             this.isHost = true;
             ipcRenderer.send('set-host-status', true);
             
-            // Show host screen immediately
             this.showScreen('host');
             
-            // Get available sources
             const sources = await ipcRenderer.invoke('get-screen-sources');
-            
-            // Use primary screen
             const source = sources.find(s => s.name.includes('Screen')) || sources[0];
             
-            if (!source) {
-                throw new Error('No screen source available');
-            }
+            if (!source) throw new Error('No screen source available');
             
             console.log('Using source:', source.name);
             
-            // Get screen stream with optimized settings
             this.localStream = await navigator.mediaDevices.getUserMedia({
                 audio: false,
                 video: {
@@ -206,7 +221,6 @@ class ZLRemoteDesktop {
                 }
             });
 
-            // Display stream
             const video = document.createElement('video');
             video.srcObject = this.localStream;
             video.autoplay = true;
@@ -219,27 +233,26 @@ class ZLRemoteDesktop {
             container.innerHTML = '';
             container.appendChild(video);
 
-            // Register as host
-            this.ws.send(JSON.stringify({
+            this.sendMessage({
                 type: 'register_host',
                 deviceInfo: {
                     platform: 'desktop',
                     resolution: `${source.bounds?.width || 1920}x${source.bounds?.height || 1080}`,
                     os: process.platform
                 }
-            }));
+            });
 
-            // Start FPS counter
             this.startFPSCounter();
-            
-            // Auto-maximize window for better experience
             ipcRenderer.send('window-maximize');
-            
             this.showToast('Screen sharing started', 'success');
 
         } catch (error) {
             console.error('Failed to start hosting:', error);
-            this.showToast('Failed to start screen sharing: ' + error.message, 'error');
+            if (error.name === 'NotAllowedError') {
+                this.showToast('Screen sharing permission was denied', 'error');
+            } else {
+                this.showToast('Failed to start screen sharing: ' + error.message, 'error');
+            }
             this.showScreen('welcome');
             this.isHost = false;
             ipcRenderer.send('set-host-status', false);
@@ -286,9 +299,13 @@ class ZLRemoteDesktop {
                 this.handleRemoteInput(message.data);
                 break;
                 
+            case 'chat':
+                this.handleChatMessage(message);
+                break;
+                
             case 'connected_to_host':
                 this.showToast('Connected to session', 'success');
-                this.showScreen('welcome');
+                this.showScreen('welcome'); // Or navigate to a viewer screen if implemented
                 break;
                 
             case 'error':
@@ -299,16 +316,9 @@ class ZLRemoteDesktop {
 
     async handleViewerJoined(viewerId) {
         console.log('Viewer joined:', viewerId);
-        
-        // Setup WebRTC for this viewer
         const pc = await this.setupWebRTC(viewerId);
-        
-        // Update viewer count
         this.updateViewerCount();
-        
         this.showToast('A viewer has connected', 'success');
-        
-        // Create offer
         await this.createOffer(pc, viewerId);
     }
 
@@ -317,9 +327,6 @@ class ZLRemoteDesktop {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
                 { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun3.l.google.com:19302' },
-                { urls: 'stun:stun4.l.google.com:19302' }
             ],
             iceCandidatePoolSize: 10
         };
@@ -329,11 +336,11 @@ class ZLRemoteDesktop {
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                this.ws.send(JSON.stringify({
+                this.sendMessage({
                     type: 'ice_candidate',
                     candidate: event.candidate,
                     sessionId: this.sessionId
-                }));
+                });
             }
         };
 
@@ -345,7 +352,6 @@ class ZLRemoteDesktop {
             }
         };
 
-        // Add local stream tracks
         if (this.localStream && !this.isPaused) {
             this.localStream.getTracks().forEach(track => {
                 pc.addTrack(track, this.localStream);
@@ -357,19 +363,15 @@ class ZLRemoteDesktop {
 
     async createOffer(pc, viewerId) {
         try {
-            const offer = await pc.createOffer({
-                offerToReceiveAudio: false,
-                offerToReceiveVideo: false
-            });
-            
+            const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             
-            this.ws.send(JSON.stringify({
+            this.sendMessage({
                 type: 'webrtc_offer',
                 offer: offer,
                 sessionId: this.sessionId,
                 viewerId: viewerId
-            }));
+            });
             
         } catch (error) {
             console.error('Failed to create offer:', error);
@@ -380,13 +382,30 @@ class ZLRemoteDesktop {
         const pc = this.viewers.get(message.viewerId);
         if (pc) {
             await pc.setRemoteDescription(message.answer);
+            
+            if (this.iceCandidateQueues.has(message.viewerId)) {
+                const queue = this.iceCandidateQueues.get(message.viewerId);
+                while (queue.length > 0) {
+                    await pc.addIceCandidate(queue.shift());
+                }
+                this.iceCandidateQueues.delete(message.viewerId);
+            }
         }
     }
 
     async handleICECandidate(message) {
         const pc = this.viewers.get(message.viewerId);
-        if (pc) {
-            await pc.addIceCandidate(message.candidate);
+        if (pc && pc.remoteDescription) {
+            try {
+                await pc.addIceCandidate(message.candidate);
+            } catch (e) {
+                console.error('Error adding ICE candidate', e);
+            }
+        } else if (pc) {
+            if (!this.iceCandidateQueues.has(message.viewerId)) {
+                this.iceCandidateQueues.set(message.viewerId, []);
+            }
+            this.iceCandidateQueues.get(message.viewerId).push(message.candidate);
         }
     }
 
@@ -410,50 +429,75 @@ class ZLRemoteDesktop {
         document.getElementById('sessionId').textContent = this.sessionId;
     }
 
-    copySessionId() {
-        navigator.clipboard.writeText(this.sessionId).then(() => {
-            this.showToast('Session ID copied to clipboard', 'success');
+    async copySessionId() {
+        try {
+            await navigator.clipboard.writeText(this.sessionId);
             
-            // Visual feedback
             const btn = document.getElementById('copyBtn');
             const originalHTML = btn.innerHTML;
-            btn.innerHTML = '✓';
+            
+            // Cambiar el ícono a un checkmark
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            `;
+            
+            // Mostrar notificación
+            this.showToast('Session ID copied to clipboard', 'success');
+            
+            // Restaurar el ícono después de 2 segundos
             setTimeout(() => {
-                btn.innerHTML = originalHTML;
-            }, 1000);
-        });
+                btn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                `;
+            }, 2000);
+            
+        } catch (err) {
+            console.error('Failed to copy session ID:', err);
+            this.showToast('Failed to copy session ID', 'error');
+        }
     }
 
     togglePause() {
         this.isPaused = !this.isPaused;
         const btn = document.getElementById('pauseBtn');
+        const icon = btn.querySelector('svg');
         const btnText = btn.querySelector('span');
         
+        // Actualizar el texto del botón
+        btnText.textContent = this.isPaused ? 'Resume' : 'Pause';
+        
+        // Cambiar el ícono según el estado de pausa
         if (this.isPaused) {
-            btnText.textContent = 'Resume';
-            this.showToast('Screen sharing paused', 'info');
-            
-            // Stop sharing video
-            this.viewers.forEach((pc) => {
-                const senders = pc.getSenders();
-                senders.forEach(sender => {
-                    if (sender.track && sender.track.kind === 'video') {
-                        sender.track.enabled = false;
-                    }
-                });
-            });
+            icon.innerHTML = `
+                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+            `;
+            this.showToast('Screen sharing paused', 'warning');
         } else {
-            btnText.textContent = 'Pause';
-            this.showToast('Screen sharing resumed', 'info');
-            
-            // Resume sharing video
-            this.viewers.forEach((pc) => {
-                const senders = pc.getSenders();
-                senders.forEach(sender => {
-                    if (sender.track && sender.track.kind === 'video') {
-                        sender.track.enabled = true;
-                    }
-                });
+            icon.innerHTML = `
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+            `;
+            this.showToast('Screen sharing resumed', 'success');
+        }
+        
+        // Pausar/reanudar las pistas de video para todos los espectadores
+        this.viewers.forEach(pc => {
+            pc.getSenders().forEach(sender => {
+                if (sender.track && sender.track.kind === 'video') {
+                    sender.track.enabled = !this.isPaused;
+                }
+            });
+        });
+        
+        // Si hay una transmisión local, también pausar/reanudar las pistas locales
+        if (this.localStream) {
+            this.localStream.getVideoTracks().forEach(track => {
+                track.enabled = !this.isPaused;
             });
         }
     }
@@ -461,71 +505,76 @@ class ZLRemoteDesktop {
     toggleAudio() {
         this.audioEnabled = !this.audioEnabled;
         const btn = document.getElementById('audioBtn');
+        const icon = btn.querySelector('svg');
         
+        // Cambiar la opacidad del botón
+        btn.style.opacity = this.audioEnabled ? '1' : '0.5';
+        
+        // Cambiar el ícono según el estado del audio
         if (this.audioEnabled) {
-            btn.style.opacity = '1';
-            this.showToast('Audio enabled', 'info');
+            icon.innerHTML = `
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            `;
+            this.showToast('Audio enabled', 'success');
         } else {
-            btn.style.opacity = '0.5';
+            icon.innerHTML = `
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <line x1="23" y1="9" x2="17" y2="15"></line>
+                <line x1="17" y1="9" x2="23" y2="15"></line>
+            `;
             this.showToast('Audio disabled', 'info');
+        }
+        
+        // Si hay una transmisión local, pausar/reanudar las pistas de audio
+        if (this.localStream) {
+            this.localStream.getAudioTracks().forEach(track => {
+                track.enabled = this.audioEnabled;
+            });
         }
     }
 
     stopHosting() {
-        if (confirm('Are you sure you want to stop sharing your screen?')) {
-            // Stop all peer connections
-            this.viewers.forEach((pc, viewerId) => {
-                pc.close();
-            });
-            this.viewers.clear();
+        if (!confirm('Are you sure you want to stop sharing?')) return;
             
-            // Stop local stream
-            if (this.localStream) {
-                this.localStream.getTracks().forEach(track => track.stop());
-                this.localStream = null;
-            }
-            
-            // Notify server
-            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this.ws.send(JSON.stringify({
-                    type: 'stop_hosting',
-                    sessionId: this.sessionId
-                }));
-            }
-            
-            // Reset state
-            this.isHost = false;
-            this.sessionId = null;
-            ipcRenderer.send('set-host-status', false);
-            
-            // Return to welcome screen
-            this.showScreen('welcome');
-            
-            this.showToast('Screen sharing stopped', 'info');
+        this.viewers.forEach(pc => pc.close());
+        this.viewers.clear();
+        
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => track.stop());
+            this.localStream = null;
         }
+        
+        this.sendMessage({ type: 'stop_hosting', sessionId: this.sessionId });
+        
+        this.isHost = false;
+        this.sessionId = null;
+        ipcRenderer.send('set-host-status', false);
+        
+        if (this.fpsInterval) {
+            clearInterval(this.fpsInterval);
+            this.fpsInterval = null;
+        }
+        
+        this.showScreen('welcome');
+        this.showToast('Screen sharing stopped', 'info');
     }
 
     joinSession() {
         const sessionId = document.getElementById('sessionInput').value.trim().toUpperCase();
         const password = document.getElementById('passwordInput').value;
         
-        if (!sessionId) {
-            this.showToast('Please enter a session ID', 'error');
-            return;
-        }
-        
-        if (sessionId.length < 6) {
+        if (!sessionId || sessionId.length < 6) {
             this.showToast('Invalid session ID', 'error');
             return;
         }
         
-        this.ws.send(JSON.stringify({
+        this.sendMessage({
             type: 'connect_to_host',
             sessionId: sessionId,
             password: password || null
-        }));
+        });
         
-        // Clear inputs
         document.getElementById('sessionInput').value = '';
         document.getElementById('passwordInput').value = '';
     }
@@ -535,21 +584,27 @@ class ZLRemoteDesktop {
     }
 
     startFPSCounter() {
-        setInterval(() => {
-            const now = Date.now();
-            const elapsed = now - this.lastFPSUpdate;
-            const fps = Math.round((this.frameCount * 1000) / elapsed);
-            
-            document.getElementById('fpsCounter').textContent = fps;
-            
-            this.frameCount = 0;
-            this.lastFPSUpdate = now;
+        // Clear any existing interval
+        if (this.fpsInterval) clearInterval(this.fpsInterval);
+
+        this.fpsInterval = setInterval(() => {
+            // This is a placeholder as we're not counting frames on the host side directly anymore.
+            // A more accurate FPS would be calculated from the video track.
+            const fpsEl = document.getElementById('fpsCounter');
+            if (this.localStream) {
+                const videoTrack = this.localStream.getVideoTracks()[0];
+                if (videoTrack && videoTrack.getSettings) {
+                    const { frameRate } = videoTrack.getSettings();
+                    fpsEl.textContent = frameRate ? Math.round(frameRate) : 'N/A';
+                }
+            } else {
+                fpsEl.textContent = '0';
+            }
         }, 1000);
     }
 
     showToast(message, type = 'info') {
         const container = document.getElementById('toastContainer');
-        
         const toast = document.createElement('div');
         toast.className = `toast ${type} slide-up`;
         
@@ -560,19 +615,107 @@ class ZLRemoteDesktop {
         };
         
         toast.innerHTML = `
-                        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+            <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
             <span class="toast-message">${message}</span>
         `;
         
         container.appendChild(toast);
         
-        // Auto remove after 3 seconds
         setTimeout(() => {
-            toast.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => {
+            toast.style.animation = 'slideOut 0.3s ease forwards';
+            toast.addEventListener('animationend', () => {
                 container.removeChild(toast);
-            }, 300);
+            });
         }, 3000);
+    }
+
+    // Chat functionality
+    setupChat() {
+        this.chatPanel = document.getElementById('chatPanel');
+        this.chatMessages = document.getElementById('chatMessages');
+        this.chatInput = document.getElementById('chatInput');
+        this.chatToggle = document.getElementById('chatToggle');
+        this.closeChat = document.getElementById('closeChat');
+        this.sendChatBtn = document.getElementById('sendChatBtn');
+        this.chatIsOpen = false;
+
+        // Toggle chat panel
+        this.chatToggle.addEventListener('click', () => this.toggleChat());
+        this.closeChat.addEventListener('click', () => this.toggleChat(false));
+
+        // Send message on button click or Enter key
+        this.sendChatBtn.addEventListener('click', () => this.sendChatMessage());
+        this.chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.sendChatMessage();
+            }
+        });
+
+        // Show chat toggle when in host or connect mode
+        this.chatToggle.style.display = 'flex';
+    }
+
+    toggleChat(show = null) {
+        this.chatIsOpen = show !== null ? show : !this.chatIsOpen;
+        
+        if (this.chatIsOpen) {
+            this.chatPanel.classList.remove('hidden');
+            this.chatInput.focus();
+        } else {
+            this.chatPanel.classList.add('hidden');
+        }
+    }
+
+    sendChatMessage() {
+        const message = this.chatInput.value.trim();
+        if (!message) return;
+
+        // Add message to UI immediately
+        this.addChatMessage('You', message, 'sent');
+        
+        // Clear input
+        this.chatInput.value = '';
+        
+        // Send message via WebSocket if connected
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+                type: 'chat',
+                from: this.isHost ? 'host' : 'viewer',
+                message: message,
+                timestamp: new Date().toISOString()
+            }));
+        }
+    }
+
+    addChatMessage(sender, message, type = 'received') {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}`;
+        
+        const now = new Date();
+        const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        messageDiv.innerHTML = `
+            <div class="message-content">${message}</div>
+            <div class="message-info">
+                <span class="message-sender">${sender}</span>
+                <span class="message-time">${timeString}</span>
+            </div>
+        `;
+        
+        this.chatMessages.appendChild(messageDiv);
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        
+        // Show notification if chat is closed
+        if (!this.chatIsOpen && type === 'received') {
+            this.showToast('New message in chat', 'info');
+        }
+    }
+
+    handleChatMessage(data) {
+        if (!this.chatPanel) return;
+        
+        const sender = data.from === 'host' ? 'Host' : 'Viewer';
+        this.addChatMessage(sender, data.message, data.from === 'host' ? 'received' : 'sent');
     }
 }
 

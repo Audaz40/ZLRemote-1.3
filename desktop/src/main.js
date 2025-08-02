@@ -8,9 +8,12 @@ class ZLRemoteDesktop {
     }
 
     createWindow() {
+        // Configuración de la ventana principal
         this.mainWindow = new BrowserWindow({
-            width: 1200,
-            height: 800,
+            width: 1400,
+            height: 900,
+            minWidth: 800,
+            minHeight: 600,
             webPreferences: {
                 nodeIntegration: true,
                 contextIsolation: false,
@@ -18,12 +21,26 @@ class ZLRemoteDesktop {
             },
             icon: path.join(__dirname, '../assets/icon.png'),
             title: 'ZLRemote Desktop',
-            autoHideMenuBar: true,
-            frame: true,
-            resizable: true
+            frame: false, // Sin marco para diseño personalizado
+            backgroundColor: '#ffffff',
+            show: false, // No mostrar hasta que esté listo
+            titleBarStyle: 'hidden',
+            trafficLightPosition: { x: 20, y: 20 } // Para macOS
         });
 
+        // Cargar el archivo HTML
         this.mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
+        
+        // Mostrar cuando esté listo
+        this.mainWindow.once('ready-to-show', () => {
+            this.mainWindow.show();
+            
+            // Auto-maximizar si es la primera vez
+            const isFirstRun = !this.mainWindow.getBounds().width;
+            if (isFirstRun) {
+                this.mainWindow.maximize();
+            }
+        });
         
         // DevTools para desarrollo
         if (process.env.NODE_ENV === 'development') {
@@ -93,37 +110,6 @@ class ZLRemoteDesktop {
                 this.mainWindow.setFullScreen(false);
             } else {
                 this.mainWindow.setFullScreen(true);
-            }
-        });
-        
-        // En createWindow(), actualizar las opciones:
-        this.mainWindow = new BrowserWindow({
-            width: 1400,
-            height: 900,
-            minWidth: 800,
-            minHeight: 600,
-            webPreferences: {
-                nodeIntegration: true,
-                contextIsolation: false,
-                enableRemoteModule: true
-            },
-            icon: path.join(__dirname, '../assets/icon.png'),
-            title: 'ZLRemote Desktop',
-            frame: false, // Sin marco para diseño personalizado
-            backgroundColor: '#ffffff',
-            show: false, // No mostrar hasta que esté listo
-            titleBarStyle: 'hidden',
-            trafficLightPosition: { x: 20, y: 20 } // Para macOS
-        });
-        
-        // Mostrar cuando esté listo
-        this.mainWindow.once('ready-to-show', () => {
-            this.mainWindow.show();
-            
-            // Auto-maximizar si es la primera vez
-            const isFirstRun = !this.mainWindow.getBounds().width;
-            if (isFirstRun) {
-                this.mainWindow.maximize();
             }
         });
     }

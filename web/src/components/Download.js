@@ -3,7 +3,7 @@ import './Download.css';
 
 const Download = () => {
   // Enlaces a tus instaladores en GitHub Releases
-  const GITHUB_REPO_URL = "https://github.com/tu-usuario/ZLRemote-App";
+  const GITHUB_REPO_URL = "https://github.com/Audaz40/ZLRemote-1.3";
   const LATEST_RELEASE_URL = `${GITHUB_REPO_URL}/releases/latest`;
 
   return (

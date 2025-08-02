@@ -25,7 +25,7 @@ const Header = () => {
             <li><a href="#download">Download</a></li>
           </ul>
         </nav>
-        <a href="https://github.com/tu-usuario/ZLRemote-App" target="_blank" rel="noopener noreferrer" className="header-github-link">
+        <a href="https://github.com/Audaz40/ZLRemote-1.3" target="_blank" rel="noopener noreferrer" className="header-github-link">
           GitHub
         </a>
       </div>
