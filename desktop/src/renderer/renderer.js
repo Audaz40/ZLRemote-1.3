@@ -6,6 +6,7 @@ class ZLRemoteDesktop {
         this.pc = null;
         this.localStream = null;
         this.isHost = false;
+        this.isReconnecting = false;
         this.sessionId = null;
         this.viewers = new Map();
         this.iceCandidateQueues = new Map();
@@ -119,18 +120,24 @@ class ZLRemoteDesktop {
     showScreen(screenName) {
         // Hide all screens
         Object.values(this.screens).forEach(screen => {
-            screen.style.display = 'none';
+            if (screen && screen.style) {
+                screen.style.display = 'none';
+            }
         });
 
         // Show selected screen
-        if (this.screens[screenName]) {
+        if (this.screens[screenName] && this.screens[screenName].style) {
             this.screens[screenName].style.display = 'flex';
             this.screens[screenName].classList.add('fade-in');
+        } else {
+            console.error(`Screen '${screenName}' not found or not properly initialized`);
         }
 
         // Update FAB visibility
         const fab = document.getElementById('fabBtn');
-        fab.style.display = screenName === 'host' ? 'flex' : 'none';
+        if (fab && fab.style) {
+            fab.style.display = screenName === 'host' ? 'flex' : 'none';
+        }
     }
 
     sendMessage(message) {
@@ -146,38 +153,100 @@ class ZLRemoteDesktop {
         const wsUrl = 'wss://zlremote-server.duckdns.org';
         console.log('Connecting to:', wsUrl);
         
-        this.ws = new WebSocket(wsUrl);
-        
-        this.ws.onopen = () => {
-            console.log('Connected to server');
-            this.updateConnectionStatus(true);
-            this.showToast('Connected to server', 'success');
+        // Don't try to reconnect if we're already trying to connect
+        if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+            console.log('WebSocket connection already in progress or established');
+            return;
+        }
 
-            // Procesa la cola de mensajes al conectar
-            while (this.messageQueue.length > 0) {
-                const message = this.messageQueue.shift();
-                console.log('Sending queued message:', message.type);
-                this.ws.send(JSON.stringify(message));
-            }
-        };
-
-        this.ws.onmessage = async (event) => {
-            const message = JSON.parse(event.data);
-            await this.handleServerMessage(message);
-        };
-
-        this.ws.onclose = () => {
-            console.log('Disconnected from server');
+        try {
+            this.ws = new WebSocket(wsUrl);
+            
+            // Set a timeout for the connection
+            const connectionTimeout = setTimeout(() => {
+                if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+                    console.error('Connection timeout');
+                    this.ws.close();
+                    this.showToast('Connection timeout. Please check your internet connection and try again.', 'error');
+                    this.updateConnectionStatus(false);
+                }
+            }, 10000); // 10 seconds timeout
+            
+            this.ws.onopen = () => {
+                console.log('Connected to server');
+                clearTimeout(connectionTimeout);
+                this.updateConnectionStatus(true);
+                
+                // Process any queued messages
+                while (this.messageQueue.length > 0) {
+                    const message = this.messageQueue.shift();
+                    this.sendMessage(message);
+                }
+                
+                this.onOpen();
+            };
+            
+            this.ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    this.handleServerMessage(message);
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                }
+            };
+            
+            this.ws.onclose = () => {
+                clearTimeout(connectionTimeout);
+                console.log('Disconnected from server');
+                this.updateConnectionStatus(false);
+                this.showToast('Disconnected from server', 'error');
+                
+                // Only attempt to reconnect if we're not already reconnecting
+                if (!this.isReconnecting) {
+                    this.isReconnecting = true;
+                    console.log('Attempting to reconnect in 5 seconds...');
+                    setTimeout(() => {
+                        this.isReconnecting = false;
+                        this.connectToServer();
+                    }, 5000);
+                }
+            };
+            
+            this.ws.onerror = (error) => {
+                clearTimeout(connectionTimeout);
+                console.error('WebSocket error:', error);
+                this.showToast('Connection error. Please try again later.', 'error');
+                this.updateConnectionStatus(false);
+            };
+        } catch (error) {
+            console.error('Failed to create WebSocket:', error);
+            this.showToast('Failed to connect to server. Please check your internet connection.', 'error');
             this.updateConnectionStatus(false);
-            this.showToast('Disconnected from server', 'error');
-            setTimeout(() => this.connectToServer(), 5000); // Wait 5 seconds before reconnecting
-        };
-
-        this.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
+            
+            // Schedule a reconnection attempt
+            if (!this.isReconnecting) {
+                this.isReconnecting = true;
+                console.log('Scheduling reconnection attempt in 5 seconds...');
+                setTimeout(() => {
+                    this.isReconnecting = false;
+                    this.connectToServer();
+                }, 5000);
+            }
+        }
     }
 
+    /**
+     * Called when the WebSocket connection is successfully opened
+     */
+    onOpen() {
+        console.log('WebSocket connection established');
+        // Any additional initialization after connection is established
+    }
+
+    /**
+     * Update the connection status UI
+     * @param {boolean} connected - Whether the connection is active
+     */
     updateConnectionStatus(connected) {
         const statusEl = document.getElementById('connectionStatus');
         const statusText = document.getElementById('statusText');
