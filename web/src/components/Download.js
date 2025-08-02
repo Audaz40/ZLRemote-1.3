@@ -2,33 +2,31 @@ import React from 'react';
 import './Download.css';
 
 const Download = () => {
-  // En un futuro, podrías detectar el SO del usuario y destacar el botón correcto
-  // const userOS = 'Windows'; 
+  // Enlaces a tus instaladores en GitHub Releases
+  const GITHUB_REPO_URL = "https://github.com/tu-usuario/ZLRemote-App";
+  const LATEST_RELEASE_URL = `${GITHUB_REPO_URL}/releases/latest`;
 
   return (
     <section id="download" className="download">
       <div className="container download-container">
-        <h2 className="section-title">Get ZLRemote Now</h2>
-        <p className="section-subtitle">Download the native application for the best performance and all features.</p>
-        
-        <div className="download-buttons">
-          <a href="URL_AL_INSTALADOR_DE_WINDOWS" className="download-button windows">
-            <span className="icon">🪟</span>
-            Download for Windows
+        <h2 className="section-title">Ready to Connect?</h2>
+        <p className="section-subtitle">
+          Download the native desktop client for the best performance and hosting capabilities.
+          Web client for viewing only.
+        </p>
+        <div className="download-card">
+          <div className="download-info">
+            <h3>ZLRemote Desktop Client</h3>
+            <p>Version 1.0.0 (Latest)</p>
+            <div className="os-icons">
+              <span>🪟</span>
+              <span></span>
+              <span>🐧</span>
+            </div>
+          </div>
+          <a href={LATEST_RELEASE_URL} target="_blank" rel="noopener noreferrer" className="download-main-button">
+            Download from GitHub
           </a>
-          <a href="URL_AL_INSTALADOR_DE_MACOS" className="download-button macos">
-            <span className="icon"></span>
-            Download for macOS
-          </a>
-          <a href="URL_AL_INSTALADOR_DE_LINUX" className="download-button linux">
-            <span className="icon">🐧</span>
-            Download for Linux
-          </a>
-        </div>
-        
-        <div className="mobile-stores">
-          <a href="#" className="store-badge">App Store</a>
-          <a href="#" className="store-badge">Google Play</a>
         </div>
       </div>
     </section>

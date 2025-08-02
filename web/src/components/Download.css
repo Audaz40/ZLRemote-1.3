@@ -1,55 +1,46 @@
-.download {
-    text-align: center;
-  }
-  
-  .download-container {
-    max-width: 800px;
-  }
-  
-  .download-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    flex-wrap: wrap;
-    margin-bottom: 40px;
-  }
-  
-  .download-button {
-    padding: 15px 30px;
-    border-radius: 12px;
-    text-decoration: none;
-    font-size: 18px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: transform 0.3s ease;
-    color: white;
-  }
-  
-  .download-button:hover {
-    transform: scale(1.05);
-  }
-  
-  .download-button .icon {
-    font-size: 24px;
-  }
-  
-  .download-button.windows { background-color: #0078D4; }
-  .download-button.macos { background-color: #333; }
-  .download-button.linux { background-color: #DD4814; }
-  
-  .mobile-stores {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-  }
-  
-  .store-badge {
-    background-color: var(--surface-color);
-    color: var(--text-primary);
-    padding: 10px 20px;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 500;
-  }
+.download-container {
+  max-width: 800px;
+}
+
+.download-card {
+  background-color: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-image: radial-gradient(circle at top right, rgba(139, 92, 246, 0.1), transparent 40%);
+}
+
+.download-info h3 {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.download-info p {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.os-icons span {
+  font-size: 24px;
+  margin-right: 12px;
+  opacity: 0.6;
+}
+
+.download-main-button {
+  background: var(--primary-color);
+  color: white;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.download-main-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(139, 92, 246, 0.3);
+}

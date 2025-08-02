@@ -1,37 +1,76 @@
+/* --- Variables de Color y Estilo --- */
 :root {
-    --primary-color: #6D28D9; /* Un morado vibrante */
-    --secondary-color: #EC4899; /* Un rosa */
-    --background-color: #111827; /* Un fondo oscuro tipo "noche" */
-    --surface-color: #1F2937;
-    --text-primary: #F9FAFB;
-    --text-secondary: #9CA3AF;
-    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  
-  html {
-    scroll-behavior: smooth;
-  }
-  
-  body {
-    font-family: var(--font-family);
-    background-color: var(--background-color);
-    color: var(--text-primary);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-  
-  .container {
-    width: 90%;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-  
-  section {
-    padding: 100px 0;
-  }
+  --primary-color: #8B5CF6; /* Un morado más suave, mejor para texto */
+  --secondary-color: #EC4899;
+  --background-color: #0F172A; /* Azul noche muy oscuro */
+  --surface-color: #1E293B; /* Un poco más claro que el fondo */
+  --text-primary: #F1F5F9; /* Blanco suave */
+  --text-secondary: #94A3B8; /* Gris azulado */
+  --border-color: rgba(255, 255, 255, 0.1);
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* --- Reseteo y Base --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--background-color);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- Estilos Globales de la App --- */
+.container {
+  width: 90%;
+  max-width: 1100px; /* Un poco más estrecho para más enfoque */
+  margin: 0 auto;
+}
+
+section {
+  padding: 120px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+section:last-of-type {
+  border-bottom: none;
+}
+
+a {
+  text-decoration: none;
+  color: var(--primary-color);
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--secondary-color);
+}
+
+h1, h2, h3 {
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+h2.section-title {
+    font-size: 42px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+p.section-subtitle {
+    font-size: 18px;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto 80px auto;
+    text-align: center;
+    line-height: 1.6;
+}
