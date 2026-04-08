@@ -44,16 +44,16 @@ class ZLRemoteBuilder {
 
   async buildServer() {
     console.log('📦 Building server...');
-    
+
     // Copiar archivos del servidor
     this.copyDirectory('server', path.join(config.buildDir, 'server'));
-    
+
     // Instalar dependencias de producción
-    execSync('npm ci --only=production', {
+    execSync('npm install --omit=dev', {
       cwd: path.join(config.buildDir, 'server'),
       stdio: 'inherit'
     });
-    
+
     console.log('✅ Server build complete');
   }
 
@@ -204,7 +204,7 @@ echo "ZLRemote installed successfully!"
 FROM node:18-alpine
 WORKDIR /app
 COPY server/package*.json ./
-RUN npm ci --only=production
+RUN npm install --omit=dev
 COPY server/ ./
 EXPOSE 3001
 CMD ["npm", "start"]
